@@ -24,7 +24,7 @@
 
 /* Private macro ------------------------------------------------------------*/
 
-#define VERSION "V1.3.6"
+#define VERSION "V1.3.7"
 
 #ifdef UNIT_DEBUG
 	int count = 0;
@@ -555,6 +555,35 @@ static int widget_connect(struct nwidget *widget,struct nwidget *parent)
 
 
 /**
+  * @brief    控件从树删除
+  * @param    widget : 控件
+  * @return   成功返回 0
+*/
+static int widget_disconnect(struct nwidget *widget)
+{
+	struct nwidget *prev,*next,*parent;
+
+	parent = widget->parent;
+	prev = widget->prev;
+	next = widget->next;
+
+	/* 在同级链表中删除此节点 */
+	if (NULL != next)
+		next->prev = prev;
+	if (NULL != prev)
+		prev->next = next;
+
+	/* 此节点为父节点的首个子节点，则首个子节点转移至下一个兄弟节点 */
+	if (NULL != parent && parent->sub == widget)
+		parent->sub = next;
+	
+	widget->parent = widget->next = widget->prev = NULL;
+	widget->has_been_placed = 0;
+	return 0;
+}
+
+
+/**
   * @brief    控件初始化
   * @param    widget : 控件
   * @param    form   : 控件所在的窗体
@@ -630,10 +659,10 @@ cleanup:
 */
 static int do_delete(struct nwidget *widget)
 {
-	struct nwidget *prev,*next,*parent;
+	struct nwidget *wg,*next;
 
 	/* 递归删除子节点 */
-	for (struct nwidget *wg = widget->sub; wg; wg = next) {
+	for (wg = widget->sub; wg; wg = next) {
 		next = wg->next;
 		do_delete(wg);
 	}
@@ -644,27 +673,14 @@ static int do_delete(struct nwidget *widget)
 
 	desktop_lock();
 	
-	/* 如果当前节点是桌面的聚焦节点，将焦点转移至父节点 */
+	/* 如果当前节点是桌面的聚焦节点，将焦点转移至父节点
 	if (widget == desktop_focus){
 		desktop_focus = widget->parent;
 		desktop_tips(desktop_focus->tips);
-	}
+	} */
 
-	parent = widget->parent;
-	prev = widget->prev;
-	next = widget->next;
+	widget_disconnect(widget);
 
-	/* 在同级链表中删除此节点 */
-	if (NULL != next)
-		next->prev = prev;
-	if (NULL != prev)
-		prev->next = next;
-
-	/* 此节点为父节点的首个子节点，则首个子节点转移至下一个兄弟节点 */
-	if (parent->sub == widget)
-		parent->sub = next;
-
-	widget->has_been_placed = 0;
 	if (widget->panel){
 		del_panel(widget->panel);
 		widget->panel = NULL;
@@ -694,8 +710,14 @@ int widget_delete(struct nwidget *widget)
 {
 	int rc = -1;
 	if (widget->has_been_placed == HAS_BEEN_PLACED) {
-		if (widget->editing)
+		desktop_lock();
+		if (widget->editing){
 			desktop_focus = widget->parent;
+			desktop_tips(desktop_focus->tips);
+		}
+		widget_disconnect(widget);
+		desktop_unlock();
+
 		rc = do_delete(widget);
 		desktop.editing++;
 	}
