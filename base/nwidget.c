@@ -18,20 +18,22 @@
 #include "wg_mutex.h"
 #include "nwidget.h"
 #include "stringw.h"
-#include <unistd.h>
-//#include <term.h>
-#include <sys/select.h>
 
 /* Private macro ------------------------------------------------------------*/
 
-#define VERSION "V1.3.7"
+#define VERSION "V1.3.8"
 
 #ifdef UNIT_DEBUG
 	int count = 0;
 #endif
 
+#ifdef __PDCURSES__
+	#define GET_MOUSE(x) nc_getmouse(x)
+	#define has_mouse()  1
+#else
+	#define GET_MOUSE(x) getmouse(x)
+#endif
 
-#define GET_MOUSE(x) getmouse(x)
 
 /* Private types ------------------------------------------------------------*/
 /* Private variables --------------------------------------------------------*/
@@ -793,12 +795,9 @@ long mouse_handle()
   * @brief    获取键盘输入
   * @return   0 
 */
-int desktop_keyboard()
+int desktop_keyboard(long key)
 {
 	int blur = 0;
-	long key = 0;
-	
-	key = getch();
 	
 	if ('q' == key || 0x03 == key) /* ctrl+C */
 		return -1;
@@ -859,22 +858,15 @@ static int do_redraw(struct nwidget *widget)
 */
 int desktop_editing(void)
 {
-	int rc = 0;
-	fd_set rfds;
-	struct timeval tv = {0};
+	long key = 0;
 
 	update_panels();
 	doupdate();
+
+	timeout(REFRESH_DELAY_MS);
 	while(desktop.editing) {
-		tv.tv_sec = 0;
-		tv.tv_usec = REFRESH_DELAY_MS * 1000;
-		FD_ZERO(&rfds);
-		FD_SET(STDIN_FILENO,&rfds);
-		rc = select(STDIN_FILENO+1,&rfds,0,0,&tv);
-		if (rc < 0) 
-			break;
-		
-		if (rc > 0 && desktop_keyboard() < 0)
+		key = getch();
+		if (key > 0 && desktop_keyboard(key) < 0)
 			break;
 
 		if (desktop.editing > 1) {

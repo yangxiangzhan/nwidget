@@ -8,7 +8,7 @@ DIR_INC = ../include
 DIR_LIB = ../
 
 # 依赖库
-LIBRARY = nwidget ncursesw panelw
+LIBRARY = nwidget 
 
 # 项目根目录，一般和 Makefile 同一目录
 DIR_ROOT = .
@@ -21,12 +21,12 @@ DIR_OTHER = ../
 
 # flags =====================================
 ifeq ($(OS),Windows_NT)
-	LIBRARY += 
+	LIBRARY += pdcurses
 	DIR_LIB += 
 	DIR_INC += 
 else 
 	# Unix like OS
-	LIBRARY += pthread
+	LIBRARY += pthread ncursesw panelw
 endif
 CFLAGS    := -Wall -O2 -std=gnu99
 CXXFLAGS  := -Wall -O2 -std=c++11
