@@ -81,6 +81,7 @@ ifeq ($(OS),Windows_NT)
 	MKDIR      = -mkdir >nul 2>nul
 	RMDIR      = -rmdir /S /Q
 	RM         = -del /f
+	CLEANUP    = $(RM) *.exe
 else
 	RM       = rm -f
 	MKDIR    = mkdir -p
@@ -122,3 +123,4 @@ cleanall:
 	$(foreach subdir,$(DIR_OTHER),$(MAKE) -C $(subdir) cleanall)
 	@$(RMDIR) $(DIR_BUILD)
 	@$(RM) $(TARGET)
+	$(CLEANUP)

@@ -15,6 +15,7 @@
 #define __CURSES_WIDGET_
 
 /* Includes -----------------------------------------------------------------*/
+#define PDC_RGB 1 /* for pdcurses */
 
 #include <stdio.h>  // for sprintf
 #include <stddef.h> /* for offsetof  获取"MEMBER成员"在"结构体TYPE"中的位置偏移 */
@@ -81,8 +82,11 @@ do{\
 #ifdef __PDCURSES__
 	/** 好像 pdcurses 无法通过 wmove 移动物理光标，被迫用 move */
 	#define CURSOR_MOVE(_widget,_y,_x) move((_widget)->rely + (_y) ,(_widget)->relx + (_x))
+	#define GET_MOUSE(x) nc_getmouse(x)
+	#define has_mouse()  1
 #else
 	#define CURSOR_MOVE(_widget,_y,_x) wmove((_widget)->win,_y,_x);
+	#define GET_MOUSE(x) getmouse(x)
 #endif
 
 

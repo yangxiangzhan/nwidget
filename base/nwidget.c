@@ -21,18 +21,12 @@
 
 /* Private macro ------------------------------------------------------------*/
 
-#define VERSION "V1.3.8"
+#define VERSION "V1.3.10"
 
 #ifdef UNIT_DEBUG
 	int count = 0;
 #endif
 
-#ifdef __PDCURSES__
-	#define GET_MOUSE(x) nc_getmouse(x)
-	#define has_mouse()  1
-#else
-	#define GET_MOUSE(x) getmouse(x)
-#endif
 
 
 /* Private types ------------------------------------------------------------*/
@@ -749,12 +743,20 @@ long mouse_handle()
 		return 0;
 	}
 
-#if NCURSES_MOUSE_VERSION > 1
+#ifdef __PDCURSES__
+	#define NCURSES_MOUSE_VERSION 2
+#else
+	/* pdcurses has MOUSE_MOVED but ncurses doesn't */
+	#define MOUSE_MOVED (mouse.bstate & REPORT_MOUSE_POSITION) && (prev.bstate == mouse.bstate)
+#endif
+
+#if (NCURSES_MOUSE_VERSION > 1)
 	if (mouse.bstate & BUTTON4_PRESSED) { /* 鼠标滚轮键值 */
 		key = KEY_UP;
 	} else if (mouse.bstate & BUTTON5_PRESSED) {
 		key = KEY_DOWN;
-	} else if ((mouse.bstate & REPORT_MOUSE_POSITION) && (prev.bstate  == mouse.bstate)) {
+	} else if (MOUSE_MOVED) {
+		mouse.bstate |= REPORT_MOUSE_POSITION; /* for pdcurses */
 		if (prev.x != mouse.x) {
 			key = prev.x > mouse.x ? KEY_CTRL_LEFT : KEY_CTRL_RIGHT;
 		}
@@ -768,7 +770,7 @@ long mouse_handle()
 #else
 	if (mouse.bstate & BUTTON4_PRESSED) {
 		key = KEY_UP;
-	} else if ((mouse.bstate & REPORT_MOUSE_POSITION) && prev.bstate == mouse.bstate) {
+	} else if (MOUSE_MOVED) {
 		int xdff = abs(mouse.x - prev.x);
 		int ydff = abs(mouse.y - prev.y);
 		if (ydff + xdff < 1) {
@@ -799,7 +801,7 @@ int desktop_keyboard(long key)
 {
 	int blur = 0;
 	
-	if ('q' == key || 0x03 == key) /* ctrl+C */
+	if (0x03 == key) /* 'q' == key || ctrl+C */
 		return -1;
 	
 	if (KEY_RESIZE == key) /* 终端大小改变 */
@@ -979,6 +981,11 @@ int desktop_init(struct theme *user)
 	keypad(stdscr, TRUE ); // enable keyboard input for the window.
 	mousemask(mask,&old);
 	
+	#ifdef __PDCURSES__
+	mouse_set(mask);
+	request_mouse_pos();
+	#endif
+
 	/* https://mudhalla.net/tintin/info/xterm/
 	Makes the terminal report mouse movement events 1
 	1003: always get a position event
